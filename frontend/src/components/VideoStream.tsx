@@ -80,7 +80,7 @@ export function VideoStream({ onFrame, keypoints, isAnalyzing }: VideoStreamProp
     // Clear previous frame
     ctx.clearRect(0, 0, canvas.width, canvas.height)
 
-    const kp = keypoints as Record<string, { x: number; y: number; confidence: number }>
+    const kp = keypoints as unknown as Record<string, { x: number; y: number; confidence: number }>
 
     // Draw skeleton connections
     ctx.strokeStyle = '#10B981'
