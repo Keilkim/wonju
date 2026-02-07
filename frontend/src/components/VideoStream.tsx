@@ -112,18 +112,14 @@ export function VideoStream({ onFrame, keypoints, isAnalyzing }: VideoStreamProp
   }, [keypoints])
 
   return (
-    <div className="card">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold">Live Camera</h2>
-        <div className="flex items-center gap-2">
-          {isStreaming && (
-            <span className="flex items-center gap-1 text-sm text-green-600">
-              <span className="status-indicator connected" />
-              Streaming
-            </span>
-          )}
+    <div>
+      {/* Status indicator */}
+      {isStreaming && (
+        <div className="flex items-center gap-1 text-sm text-green-600 mb-3">
+          <span className="status-indicator connected" />
+          Streaming
         </div>
-      </div>
+      )}
 
       {/* Camera selection */}
       <div className="flex gap-2 mb-4">

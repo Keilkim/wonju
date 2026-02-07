@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import { VideoStream } from '@/components/VideoStream'
+import { VideoUpload } from '@/components/VideoUpload'
 import { JointAngleChart } from '@/components/JointAngleChart'
 import { GaitAnalysis } from '@/components/GaitAnalysis'
 import { TrajectoryCanvas } from '@/components/TrajectoryCanvas'
 import { ProgressChart } from '@/components/ProgressChart'
 import { SessionControls } from '@/components/SessionControls'
+import { Stepper } from '@/components/Stepper'
 import { useWebSocket } from '@/hooks/useWebSocket'
 import {
   AnalysisResult,
@@ -20,7 +22,19 @@ import { createSession, endSession, getSessionHistory } from '@/lib/supabase'
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'
 
+const STEPS = [
+  { number: 1, title: 'Connect', description: 'Connect to server' },
+  { number: 2, title: 'Select Source', description: 'Camera or video' },
+  { number: 3, title: 'Start Session', description: 'Enter dog info' },
+  { number: 4, title: 'Analyze', description: 'View results' },
+]
+
+type VideoSource = 'camera' | 'upload'
+
 export default function Dashboard() {
+  // Video source tab
+  const [videoSource, setVideoSource] = useState<VideoSource>('camera')
+
   // Session state
   const [currentSession, setCurrentSession] = useState<{ id: string; dogId: string } | null>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -85,6 +99,14 @@ export default function Dashboard() {
     onError: (error) => console.error('WebSocket error:', error)
   })
 
+  // Calculate current step
+  const currentStep = useMemo(() => {
+    if (!isConnected) return 1
+    if (!isAnalyzing) return 2
+    if (jointAngleHistory.length === 0) return 3
+    return 4
+  }, [isConnected, isAnalyzing, jointAngleHistory.length])
+
   // Load session history
   useEffect(() => {
     if (currentSession?.dogId) {
@@ -104,6 +126,7 @@ export default function Dashboard() {
       // Clear previous data
       setJointAngleHistory([])
       setCurrentGaitMetrics(null)
+      setCurrentKeypoints(null)
       setTrajectories({
         left_front: [],
         right_front: [],
@@ -135,7 +158,7 @@ export default function Dashboard() {
     setCurrentSession(null)
   }, [currentSession, currentGaitMetrics])
 
-  // Handle frame from camera
+  // Handle frame from camera or video
   const handleFrame = useCallback((frame: string) => {
     if (isConnected && isAnalyzing) {
       sendFrame(frame)
@@ -143,7 +166,7 @@ export default function Dashboard() {
   }, [isConnected, isAnalyzing, sendFrame])
 
   return (
-    <main className="min-h-screen p-4 lg:p-6">
+    <main className="min-h-screen p-4 lg:p-6 bg-gradient-to-b from-gray-50 to-white">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="mb-6">
@@ -155,15 +178,64 @@ export default function Dashboard() {
           </p>
         </header>
 
+        {/* Stepper */}
+        <Stepper steps={STEPS} currentStep={currentStep} />
+
         {/* Main grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
           {/* Left column - Video and controls */}
           <div className="lg:col-span-2 space-y-4 lg:space-y-6">
-            <VideoStream
-              onFrame={handleFrame}
-              keypoints={currentKeypoints}
-              isAnalyzing={isAnalyzing}
-            />
+            {/* Video Source Tabs */}
+            <div className="card">
+              <div className="flex border-b border-gray-200 mb-4">
+                <button
+                  onClick={() => setVideoSource('camera')}
+                  className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+                    videoSource === 'camera'
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    Live Camera
+                  </span>
+                </button>
+                <button
+                  onClick={() => setVideoSource('upload')}
+                  className={`flex-1 py-3 px-4 text-center font-medium transition-colors ${
+                    videoSource === 'upload'
+                      ? 'text-primary border-b-2 border-primary'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                    Upload Video
+                  </span>
+                </button>
+              </div>
+
+              {/* Video content based on selected tab */}
+              <div className="p-0">
+                {videoSource === 'camera' ? (
+                  <VideoStream
+                    onFrame={handleFrame}
+                    keypoints={currentKeypoints}
+                    isAnalyzing={isAnalyzing}
+                  />
+                ) : (
+                  <VideoUpload
+                    onFrame={handleFrame}
+                    isAnalyzing={isAnalyzing}
+                  />
+                )}
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:gap-6">
               <JointAngleChart data={jointAngleHistory} />
