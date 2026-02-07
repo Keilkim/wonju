@@ -18,8 +18,7 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Download YOLO model during build
-RUN python -c "from ultralytics import YOLO; YOLO('yolov8n-pose.pt')"
+# Model will be downloaded on first use (PyTorch 2.6 compatibility handled in pose_detector.py)
 
 # Copy application code
 COPY . .
