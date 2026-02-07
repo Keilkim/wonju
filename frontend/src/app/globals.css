@@ -1,0 +1,43 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 240, 242, 245;
+  --background-end-rgb: 255, 255, 255;
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: linear-gradient(
+    to bottom,
+    rgb(var(--background-start-rgb)),
+    rgb(var(--background-end-rgb))
+  );
+  min-height: 100vh;
+}
+
+.card {
+  @apply bg-white rounded-xl shadow-lg p-4 border border-gray-100;
+}
+
+.chart-container {
+  @apply h-64 w-full;
+}
+
+.status-indicator {
+  @apply w-3 h-3 rounded-full animate-pulse;
+}
+
+.status-indicator.connected {
+  @apply bg-green-500;
+}
+
+.status-indicator.disconnected {
+  @apply bg-red-500;
+}
+
+.status-indicator.connecting {
+  @apply bg-yellow-500;
+}
