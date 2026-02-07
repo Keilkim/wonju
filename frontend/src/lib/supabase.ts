@@ -116,3 +116,41 @@ export async function getSessionResults(sessionId: string) {
   if (error) throw error
   return data
 }
+
+export async function deleteSession(sessionId: string) {
+  if (!supabase) {
+    return { success: true }
+  }
+
+  // First delete related analysis results
+  const { error: resultsError } = await supabase
+    .from('analysis_results')
+    .delete()
+    .eq('session_id', sessionId)
+
+  if (resultsError) throw resultsError
+
+  // Then delete the session
+  const { error } = await supabase
+    .from('sessions')
+    .delete()
+    .eq('id', sessionId)
+
+  if (error) throw error
+  return { success: true }
+}
+
+export async function getSessionById(sessionId: string) {
+  if (!supabase) {
+    return null
+  }
+
+  const { data, error } = await supabase
+    .from('sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .single()
+
+  if (error) throw error
+  return data
+}

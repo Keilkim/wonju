@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { ConnectionStatus } from '@/lib/types'
+import { StepGuide } from './StepGuide'
 
 interface SessionControlsProps {
   connectionStatus: ConnectionStatus
   isAnalyzing: boolean
   latency: number
+  currentStep: number
   onStartSession: (dogId: string, notes: string) => void
   onEndSession: () => void
   onConnect: () => void
@@ -17,6 +19,7 @@ export function SessionControls({
   connectionStatus,
   isAnalyzing,
   latency,
+  currentStep,
   onStartSession,
   onEndSession,
   onConnect,
@@ -54,6 +57,14 @@ export function SessionControls({
     <div className="card">
       <h2 className="text-lg font-semibold mb-4">Session Control</h2>
 
+      {/* Step 1: Connect */}
+      <StepGuide
+        stepNumber={1}
+        currentStep={currentStep}
+        title="Step 1: 서버 연결"
+        instruction="아래 Connect 버튼을 눌러 분석 서버에 연결하세요"
+      />
+
       {/* Connection status */}
       <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
         <div className="flex items-center gap-2">
@@ -84,6 +95,14 @@ export function SessionControls({
           Disconnect
         </button>
       </div>
+
+      {/* Step 3: Start Session */}
+      <StepGuide
+        stepNumber={3}
+        currentStep={currentStep}
+        title="Step 3: 세션 시작"
+        instruction="반려견 정보를 입력하고 분석을 시작하세요"
+      />
 
       {/* Session form */}
       <div className="space-y-3">
