@@ -5,7 +5,8 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(gh:*)",
-      "Bash(git stash:*)"
+      "Bash(git stash:*)",
+      "Bash(npm view:*)"
     ]
   }
 }
