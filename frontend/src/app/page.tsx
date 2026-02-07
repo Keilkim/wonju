@@ -46,7 +46,7 @@ export default function Dashboard() {
       setCurrentKeypoints(result.keypoints)
 
       // Update trajectories from paw positions
-      const kp = result.keypoints as Record<string, { x: number; y: number; confidence: number }>
+      const kp = result.keypoints as unknown as Record<string, { x: number; y: number; confidence: number }>
       const ts = result.timestamp
 
       setTrajectories(prev => ({
