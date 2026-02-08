@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, Dict, List
 from datetime import datetime
+from enum import Enum
 
 
 class Keypoint(BaseModel):
@@ -73,3 +74,33 @@ class FrameData(BaseModel):
     type: str
     data: str  # base64 encoded image
     timestamp: int
+
+
+class DetectionMode(str, Enum):
+    AI_POSE = "ai_pose"
+    COLOR_MARKER = "color_marker"
+
+
+class HSVRange(BaseModel):
+    hue_low: int = 0
+    hue_high: int = 179
+    sat_low: int = 100
+    sat_high: int = 255
+    val_low: int = 100
+    val_high: int = 255
+
+
+class ColorMarkerConfig(BaseModel):
+    joint_name: str
+    color_name: str
+    hsv_range: HSVRange
+    display_color: str = "#FFFFFF"
+
+
+class DetectedPoint(BaseModel):
+    id: str
+    x: float
+    y: float
+    suggested_label: str
+    color_name: Optional[str] = None
+    confidence: float

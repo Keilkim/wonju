@@ -11,11 +11,12 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts'
-import { JointAngles } from '@/lib/types'
+import { JointAngles, DetectionMode } from '@/lib/types'
 
 interface JointAngleChartProps {
   data: Array<{ timestamp: number; angles: JointAngles }>
   maxPoints?: number
+  detectionMode?: DetectionMode
 }
 
 const JOINT_COLORS = {
@@ -40,7 +41,10 @@ const JOINT_LABELS: Record<string, string> = {
   right_knee: 'R Knee',
 }
 
-export function JointAngleChart({ data, maxPoints = 100 }: JointAngleChartProps) {
+// Joints that are NOT available in color marker mode
+const COLOR_MARKER_HIDDEN = new Set(['left_elbow', 'right_elbow', 'left_knee', 'right_knee'])
+
+export function JointAngleChart({ data, maxPoints = 100, detectionMode = 'ai_pose' }: JointAngleChartProps) {
   const chartData = useMemo(() => {
     const sliced = data.slice(-maxPoints)
     const startTime = sliced[0]?.timestamp || 0
@@ -85,7 +89,9 @@ export function JointAngleChart({ data, maxPoints = 100 }: JointAngleChartProps)
               labelFormatter={(label) => `Time: ${label}s`}
             />
             <Legend wrapperStyle={{ fontSize: 12 }} />
-            {Object.entries(JOINT_COLORS).map(([key, color]) => (
+            {Object.entries(JOINT_COLORS)
+              .filter(([key]) => detectionMode !== 'color_marker' || !COLOR_MARKER_HIDDEN.has(key))
+              .map(([key, color]) => (
               <Line
                 key={key}
                 type="monotone"

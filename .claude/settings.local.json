@@ -6,7 +6,13 @@
       "Bash(git commit:*)",
       "Bash(gh:*)",
       "Bash(git stash:*)",
-      "Bash(npm view:*)"
+      "Bash(npm view:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx next build:*)",
+      "Bash(git remote add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git branch:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

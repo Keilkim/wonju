@@ -43,50 +43,45 @@ class MetricsCalculator:
 
         return math.degrees(angle)
 
-    def calculate_joint_angles(self, keypoints: Dict) -> Dict[str, float]:
+    def calculate_joint_angles(self, keypoints: Dict, detection_mode: str = 'ai_pose') -> Dict[str, float]:
         """Calculate all joint angles from keypoints."""
+        Z = {'x': 0, 'y': 0, 'confidence': 0}
+
+        # Shoulder and hip angles work for both modes
         angles = {
             'left_shoulder': self.calculate_angle(
-                keypoints.get('left_elbow', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_hip', {'x': 0, 'y': 0, 'confidence': 0})
+                keypoints.get('left_elbow', Z), keypoints.get('left_shoulder', Z), keypoints.get('left_hip', Z)
             ),
             'right_shoulder': self.calculate_angle(
-                keypoints.get('right_elbow', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_hip', {'x': 0, 'y': 0, 'confidence': 0})
-            ),
-            'left_elbow': self.calculate_angle(
-                keypoints.get('left_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_elbow', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_wrist', {'x': 0, 'y': 0, 'confidence': 0})
-            ),
-            'right_elbow': self.calculate_angle(
-                keypoints.get('right_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_elbow', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_wrist', {'x': 0, 'y': 0, 'confidence': 0})
+                keypoints.get('right_elbow', Z), keypoints.get('right_shoulder', Z), keypoints.get('right_hip', Z)
             ),
             'left_hip': self.calculate_angle(
-                keypoints.get('left_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_hip', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_knee', {'x': 0, 'y': 0, 'confidence': 0})
+                keypoints.get('left_shoulder', Z), keypoints.get('left_hip', Z), keypoints.get('left_knee', Z)
             ),
             'right_hip': self.calculate_angle(
-                keypoints.get('right_shoulder', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_hip', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_knee', {'x': 0, 'y': 0, 'confidence': 0})
-            ),
-            'left_knee': self.calculate_angle(
-                keypoints.get('left_hip', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_knee', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('left_ankle', {'x': 0, 'y': 0, 'confidence': 0})
-            ),
-            'right_knee': self.calculate_angle(
-                keypoints.get('right_hip', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_knee', {'x': 0, 'y': 0, 'confidence': 0}),
-                keypoints.get('right_ankle', {'x': 0, 'y': 0, 'confidence': 0})
+                keypoints.get('right_shoulder', Z), keypoints.get('right_hip', Z), keypoints.get('right_knee', Z)
             ),
         }
+
+        if detection_mode == 'color_marker':
+            # Color marker mode: no wrist/ankle markers, so elbow/knee angles = 0
+            angles['left_elbow'] = 0.0
+            angles['right_elbow'] = 0.0
+            angles['left_knee'] = 0.0
+            angles['right_knee'] = 0.0
+        else:
+            angles['left_elbow'] = self.calculate_angle(
+                keypoints.get('left_shoulder', Z), keypoints.get('left_elbow', Z), keypoints.get('left_wrist', Z)
+            )
+            angles['right_elbow'] = self.calculate_angle(
+                keypoints.get('right_shoulder', Z), keypoints.get('right_elbow', Z), keypoints.get('right_wrist', Z)
+            )
+            angles['left_knee'] = self.calculate_angle(
+                keypoints.get('left_hip', Z), keypoints.get('left_knee', Z), keypoints.get('left_ankle', Z)
+            )
+            angles['right_knee'] = self.calculate_angle(
+                keypoints.get('right_hip', Z), keypoints.get('right_knee', Z), keypoints.get('right_ankle', Z)
+            )
 
         return angles
 
@@ -141,15 +136,15 @@ class MetricsCalculator:
             'confidence': (left_hip['confidence'] + right_hip['confidence']) / 2
         }
 
-    def calculate_stride_length(self) -> float:
-        """Calculate average stride length from paw movements."""
+    def calculate_stride_length(self, ref_key: str = 'left_front_paw') -> float:
+        """Calculate average stride length from limb endpoint movements."""
         if len(self.keypoint_history) < 10:
             return 0.0
 
-        # Track left front paw movements
+        # Track reference point movements
         paw_positions = []
         for kp in self.keypoint_history:
-            paw = kp.get('left_front_paw', {'x': 0, 'y': 0, 'confidence': 0})
+            paw = kp.get(ref_key, {'x': 0, 'y': 0, 'confidence': 0})
             if paw['confidence'] > 0.3:
                 paw_positions.append(paw)
 
@@ -182,18 +177,18 @@ class MetricsCalculator:
 
         return sum(strides) / len(strides)
 
-    def calculate_cadence(self) -> float:
+    def calculate_cadence(self, ref_key: str = 'left_front_paw') -> float:
         """Calculate steps per minute."""
         if len(self.keypoint_history) < 20:
             return 0.0
 
-        # Count direction changes in paw vertical position
+        # Count direction changes in reference point vertical position
         step_count = 0
         prev_y = None
         direction = 0
 
         for kp in self.keypoint_history:
-            paw = kp.get('left_front_paw', {'y': 0, 'confidence': 0})
+            paw = kp.get(ref_key, {'y': 0, 'confidence': 0})
             if paw['confidence'] < 0.3:
                 continue
 
@@ -280,19 +275,22 @@ class MetricsCalculator:
 
         return min(1.0, max(0.0, smoothness))
 
-    def calculate_gait_metrics(self, keypoints: Dict, timestamp: int) -> Dict:
+    def calculate_gait_metrics(self, keypoints: Dict, timestamp: int, detection_mode: str = 'ai_pose') -> Dict:
         """Calculate all gait metrics."""
         # Add to history
         self.add_frame(keypoints, timestamp)
 
         # Calculate joint angles
-        joint_angles = self.calculate_joint_angles(keypoints)
+        joint_angles = self.calculate_joint_angles(keypoints, detection_mode)
+
+        # For color marker mode, use elbow as reference point instead of paw
+        ref_key = 'left_elbow' if detection_mode == 'color_marker' else 'left_front_paw'
 
         # Calculate gait metrics
         gait_metrics = {
             'speed': round(self.calculate_speed(), 2),
-            'stride_length': round(self.calculate_stride_length(), 2),
-            'cadence': round(self.calculate_cadence(), 2),
+            'stride_length': round(self.calculate_stride_length(ref_key), 2),
+            'cadence': round(self.calculate_cadence(ref_key), 2),
             'symmetry': round(self.calculate_symmetry(joint_angles), 3),
             'smoothness': round(self.calculate_smoothness(), 3),
         }

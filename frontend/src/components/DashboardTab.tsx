@@ -1,7 +1,6 @@
 'use client'
 
 import { VideoStream } from './VideoStream'
-import { VideoUpload } from './VideoUpload'
 import { JointAngleChart } from './JointAngleChart'
 import { GaitAnalysis } from './GaitAnalysis'
 import { TrajectoryCanvas } from './TrajectoryCanvas'
@@ -12,7 +11,8 @@ import {
   JointAngles,
   GaitMetrics,
   TrajectoryPoint,
-  Session
+  Session,
+  DetectionMode,
 } from '@/lib/types'
 
 interface DashboardTabProps {
@@ -21,7 +21,7 @@ interface DashboardTabProps {
   notes: string
   isAnalyzing: boolean
   isConnected: boolean
-  videoSource: 'camera' | 'upload'
+  detectionMode: DetectionMode
 
   // Analysis data
   keypoints: DogKeypoints | null
@@ -49,7 +49,7 @@ export function DashboardTab({
   notes,
   isAnalyzing,
   isConnected,
-  videoSource,
+  detectionMode,
   keypoints,
   jointAngleHistory,
   gaitMetrics,
@@ -82,6 +82,15 @@ export function DashboardTab({
               <span className="text-gray-500">반려견:</span>{' '}
               <span className="font-medium">{dogId || '-'}</span>
             </div>
+            {/* Detection mode badge */}
+            <div className="h-6 w-px bg-gray-200" />
+            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+              detectionMode === 'color_marker'
+                ? 'bg-orange-100 text-orange-700'
+                : 'bg-blue-100 text-blue-700'
+            }`}>
+              {detectionMode === 'color_marker' ? '컬러 마커' : 'AI 포즈'}
+            </span>
             {notes && (
               <>
                 <div className="h-6 w-px bg-gray-200" />
@@ -153,23 +162,17 @@ export function DashboardTab({
           {/* Video Feed */}
           <div className="card">
             <h3 className="text-lg font-semibold mb-4">실시간 영상</h3>
-            {videoSource === 'camera' ? (
-              <VideoStream
-                onFrame={onFrame}
-                keypoints={keypoints}
-                isAnalyzing={isAnalyzing}
-              />
-            ) : (
-              <VideoUpload
-                onFrame={onFrame}
-                isAnalyzing={isAnalyzing}
-              />
-            )}
+            <VideoStream
+              onFrame={onFrame}
+              keypoints={keypoints}
+              isAnalyzing={isAnalyzing}
+              detectionMode={detectionMode}
+            />
           </div>
 
           {/* Analysis Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <JointAngleChart data={jointAngleHistory} />
+            <JointAngleChart data={jointAngleHistory} detectionMode={detectionMode} />
             <TrajectoryCanvas trajectories={trajectories} />
           </div>
         </div>

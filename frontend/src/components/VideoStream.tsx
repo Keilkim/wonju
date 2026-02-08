@@ -2,15 +2,16 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react'
 import { useCamera } from '@/hooks/useCamera'
-import { DogKeypoints } from '@/lib/types'
+import { DogKeypoints, DetectionMode } from '@/lib/types'
 
 interface VideoStreamProps {
   onFrame?: (frame: string) => void
   keypoints?: DogKeypoints | null
   isAnalyzing: boolean
+  detectionMode?: DetectionMode
 }
 
-// Keypoint connections for skeleton drawing
+// Keypoint connections for AI pose skeleton
 const SKELETON_CONNECTIONS = [
   ['nose', 'left_eye'], ['nose', 'right_eye'],
   ['left_eye', 'left_ear'], ['right_eye', 'right_ear'],
@@ -26,7 +27,19 @@ const SKELETON_CONNECTIONS = [
   ['left_ankle', 'left_back_paw'], ['right_ankle', 'right_back_paw'],
 ]
 
-export function VideoStream({ onFrame, keypoints, isAnalyzing }: VideoStreamProps) {
+// Reduced connections for color marker mode (8 joints only)
+const COLOR_MARKER_CONNECTIONS = [
+  ['left_shoulder', 'left_elbow'],
+  ['right_shoulder', 'right_elbow'],
+  ['left_shoulder', 'left_hip'],
+  ['right_shoulder', 'right_hip'],
+  ['left_shoulder', 'right_shoulder'],
+  ['left_hip', 'right_hip'],
+  ['left_hip', 'left_knee'],
+  ['right_hip', 'right_knee'],
+]
+
+export function VideoStream({ onFrame, keypoints, isAnalyzing, detectionMode = 'ai_pose' }: VideoStreamProps) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const overlayRef = useRef<HTMLCanvasElement>(null)
@@ -83,9 +96,10 @@ export function VideoStream({ onFrame, keypoints, isAnalyzing }: VideoStreamProp
     const kp = keypoints as unknown as Record<string, { x: number; y: number; confidence: number }>
 
     // Draw skeleton connections
-    ctx.strokeStyle = '#10B981'
+    const connections = detectionMode === 'color_marker' ? COLOR_MARKER_CONNECTIONS : SKELETON_CONNECTIONS
+    ctx.strokeStyle = detectionMode === 'color_marker' ? '#F97316' : '#10B981'
     ctx.lineWidth = 2
-    for (const [start, end] of SKELETON_CONNECTIONS) {
+    for (const [start, end] of connections) {
       const p1 = kp[start]
       const p2 = kp[end]
       if (p1?.confidence > 0.5 && p2?.confidence > 0.5) {
@@ -109,7 +123,7 @@ export function VideoStream({ onFrame, keypoints, isAnalyzing }: VideoStreamProp
         ctx.stroke()
       }
     }
-  }, [keypoints])
+  }, [keypoints, detectionMode])
 
   return (
     <div>

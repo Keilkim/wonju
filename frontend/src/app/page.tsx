@@ -10,14 +10,17 @@ import {
   JointAngles,
   GaitMetrics,
   TrajectoryPoint,
-  Session
+  Session,
+  DetectionMode,
+  DetectedPoint,
+  ColorMarkerConfig,
+  DEFAULT_MARKER_CONFIGS,
 } from '@/lib/types'
 import { createSession, endSession, getSessionHistory, deleteSession, getSessionResults } from '@/lib/supabase'
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws'
 
 type MainTab = 'settings' | 'dashboard'
-type VideoSource = 'camera' | 'upload'
 
 export default function Dashboard() {
   // Main tab state
@@ -26,8 +29,12 @@ export default function Dashboard() {
   // Settings state
   const [dogId, setDogId] = useState('')
   const [notes, setNotes] = useState('')
-  const [videoSource, setVideoSource] = useState<VideoSource>('camera')
-  const [isPreviewing, setIsPreviewing] = useState(true)
+
+  // Detection mode & calibration state
+  const [detectionMode, setDetectionMode] = useState<DetectionMode>('ai_pose')
+  const [detectedPoints, setDetectedPoints] = useState<DetectedPoint[]>([])
+  const [isCalibrated, setIsCalibrated] = useState(false)
+  const [markerConfigs, setMarkerConfigs] = useState<ColorMarkerConfig[]>(DEFAULT_MARKER_CONFIGS)
 
   // Session state
   const [currentSession, setCurrentSession] = useState<{ id: string; dogId: string } | null>(null)
@@ -53,16 +60,22 @@ export default function Dashboard() {
     if (result.keypoints) {
       setCurrentKeypoints(result.keypoints)
 
-      // Only update trajectories when analyzing (not previewing)
+      // Only update trajectories when analyzing
       if (isAnalyzing) {
         const kp = result.keypoints as unknown as Record<string, { x: number; y: number; confidence: number }>
         const ts = result.timestamp
 
+        // Use appropriate reference points based on detection mode
+        const lfKey = detectionMode === 'color_marker' ? 'left_elbow' : 'left_front_paw'
+        const rfKey = detectionMode === 'color_marker' ? 'right_elbow' : 'right_front_paw'
+        const lbKey = detectionMode === 'color_marker' ? 'left_knee' : 'left_back_paw'
+        const rbKey = detectionMode === 'color_marker' ? 'right_knee' : 'right_back_paw'
+
         setTrajectories(prev => ({
-          left_front: [...prev.left_front.slice(-199), { x: kp.left_front_paw?.x || 0, y: kp.left_front_paw?.y || 0, timestamp: ts }],
-          right_front: [...prev.right_front.slice(-199), { x: kp.right_front_paw?.x || 0, y: kp.right_front_paw?.y || 0, timestamp: ts }],
-          left_back: [...prev.left_back.slice(-199), { x: kp.left_back_paw?.x || 0, y: kp.left_back_paw?.y || 0, timestamp: ts }],
-          right_back: [...prev.right_back.slice(-199), { x: kp.right_back_paw?.x || 0, y: kp.right_back_paw?.y || 0, timestamp: ts }],
+          left_front: [...prev.left_front.slice(-199), { x: kp[lfKey]?.x || 0, y: kp[lfKey]?.y || 0, timestamp: ts }],
+          right_front: [...prev.right_front.slice(-199), { x: kp[rfKey]?.x || 0, y: kp[rfKey]?.y || 0, timestamp: ts }],
+          left_back: [...prev.left_back.slice(-199), { x: kp[lbKey]?.x || 0, y: kp[lbKey]?.y || 0, timestamp: ts }],
+          right_back: [...prev.right_back.slice(-199), { x: kp[rbKey]?.x || 0, y: kp[rbKey]?.y || 0, timestamp: ts }],
         }))
       }
     }
@@ -79,7 +92,17 @@ export default function Dashboard() {
     if (result.gait_metrics && isAnalyzing) {
       setCurrentGaitMetrics(result.gait_metrics)
     }
-  }, [isAnalyzing])
+  }, [isAnalyzing, detectionMode])
+
+  // Handle calibration results
+  const handleCalibrationResult = useCallback((points: DetectedPoint[]) => {
+    setDetectedPoints(points)
+  }, [])
+
+  // Handle calibration confirmed
+  const handleCalibrationConfirmed = useCallback(() => {
+    setIsCalibrated(true)
+  }, [])
 
   // WebSocket connection
   const {
@@ -88,10 +111,16 @@ export default function Dashboard() {
     connect,
     disconnect,
     sendFrame,
+    setDetectionMode: wsSetDetectionMode,
+    sendCalibrationFrame,
+    confirmCalibration,
+    updateMarkerConfig,
     isConnected
   } = useWebSocket({
     url: WS_URL,
     onResult: handleResult,
+    onCalibrationResult: handleCalibrationResult,
+    onCalibrationConfirmed: handleCalibrationConfirmed,
     onError: (error) => console.error('WebSocket error:', error)
   })
 
@@ -104,12 +133,39 @@ export default function Dashboard() {
     }
   }, [dogId])
 
-  // Handle frame for preview (in settings) or analysis (in dashboard)
+  // Handle frame for analysis (in dashboard)
   const handleFrame = useCallback((frame: string) => {
     if (isConnected) {
       sendFrame(frame)
     }
   }, [isConnected, sendFrame])
+
+  // Handle detection mode change
+  const handleDetectionModeChange = useCallback((mode: DetectionMode) => {
+    setDetectionMode(mode)
+    setIsCalibrated(false)
+    setDetectedPoints([])
+    wsSetDetectionMode(mode)
+  }, [wsSetDetectionMode])
+
+  // Handle calibration frame
+  const handleCalibrationFrame = useCallback((frame: string) => {
+    if (isConnected) {
+      sendCalibrationFrame(frame)
+    }
+  }, [isConnected, sendCalibrationFrame])
+
+  // Handle confirm calibration
+  const handleConfirmCalibration = useCallback((labelMapping: Record<string, string>) => {
+    confirmCalibration(labelMapping)
+    setIsCalibrated(true)
+  }, [confirmCalibration])
+
+  // Handle marker config update
+  const handleUpdateMarkerConfig = useCallback((configs: ColorMarkerConfig[]) => {
+    setMarkerConfigs(configs)
+    updateMarkerConfig(configs)
+  }, [updateMarkerConfig])
 
   // Start new session
   const handleStartSession = useCallback(async () => {
@@ -143,7 +199,6 @@ export default function Dashboard() {
     if (currentSession && currentGaitMetrics) {
       try {
         await endSession(currentSession.id, currentGaitMetrics)
-        // Refresh session history
         const history = await getSessionHistory(currentSession.dogId)
         setSessions(history)
       } catch (error) {
@@ -282,15 +337,18 @@ export default function Dashboard() {
             isConnected={isConnected}
             dogId={dogId}
             notes={notes}
-            videoSource={videoSource}
-            keypoints={currentKeypoints}
-            isPreviewing={isPreviewing}
+            detectionMode={detectionMode}
+            detectedPoints={detectedPoints}
+            isCalibrated={isCalibrated}
+            markerConfigs={markerConfigs}
             onConnect={connect}
             onDisconnect={disconnect}
             onDogIdChange={setDogId}
             onNotesChange={setNotes}
-            onVideoSourceChange={setVideoSource}
-            onPreviewFrame={handleFrame}
+            onDetectionModeChange={handleDetectionModeChange}
+            onCalibrationFrame={handleCalibrationFrame}
+            onConfirmCalibration={handleConfirmCalibration}
+            onUpdateMarkerConfig={handleUpdateMarkerConfig}
             onSettingsComplete={handleSettingsComplete}
           />
         ) : (
@@ -299,7 +357,7 @@ export default function Dashboard() {
             notes={notes}
             isAnalyzing={isAnalyzing}
             isConnected={isConnected}
-            videoSource={videoSource}
+            detectionMode={detectionMode}
             keypoints={currentKeypoints}
             jointAngleHistory={jointAngleHistory}
             gaitMetrics={currentGaitMetrics}
