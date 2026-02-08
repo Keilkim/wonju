@@ -93,6 +93,7 @@ class HSVRange(BaseModel):
 class ColorMarkerConfig(BaseModel):
     joint_name: str
     color_name: str
+    position_order: int = 1  # 같은 색 내 위→아래 순서 (1=가장 위)
     hsv_range: HSVRange
     display_color: str = "#FFFFFF"
 

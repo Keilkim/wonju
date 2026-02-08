@@ -98,8 +98,17 @@ export interface HSVRange {
 export interface ColorMarkerConfig {
   joint_name: string
   color_name: string
+  position_order: number  // 같은 색 내에서 위→아래 순서 (1=가장 위)
   hsv_range: HSVRange
   display_color: string
+}
+
+// Saved marker preset
+export interface MarkerPreset {
+  id: string
+  name: string
+  configs: ColorMarkerConfig[]
+  created_at: string
 }
 
 // A detected point during calibration
@@ -122,17 +131,41 @@ export interface CalibrationState {
   marker_configs: ColorMarkerConfig[]
 }
 
-// Default 8 marker color presets
-export const DEFAULT_MARKER_CONFIGS: ColorMarkerConfig[] = [
-  { joint_name: 'left_shoulder', color_name: 'Red', hsv_range: { hue_low: 170, hue_high: 10, sat_low: 120, sat_high: 255, val_low: 100, val_high: 255 }, display_color: '#EF4444' },
-  { joint_name: 'right_shoulder', color_name: 'Blue', hsv_range: { hue_low: 100, hue_high: 130, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#3B82F6' },
-  { joint_name: 'left_elbow', color_name: 'Green', hsv_range: { hue_low: 35, hue_high: 85, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#22C55E' },
-  { joint_name: 'right_elbow', color_name: 'Yellow', hsv_range: { hue_low: 20, hue_high: 35, sat_low: 120, sat_high: 255, val_low: 150, val_high: 255 }, display_color: '#EAB308' },
-  { joint_name: 'left_hip', color_name: 'Orange', hsv_range: { hue_low: 10, hue_high: 20, sat_low: 150, sat_high: 255, val_low: 150, val_high: 255 }, display_color: '#F97316' },
-  { joint_name: 'right_hip', color_name: 'Purple', hsv_range: { hue_low: 130, hue_high: 160, sat_low: 80, sat_high: 255, val_low: 60, val_high: 255 }, display_color: '#A855F7' },
-  { joint_name: 'left_knee', color_name: 'Pink', hsv_range: { hue_low: 160, hue_high: 170, sat_low: 80, sat_high: 255, val_low: 100, val_high: 255 }, display_color: '#EC4899' },
-  { joint_name: 'right_knee', color_name: 'Cyan', hsv_range: { hue_low: 85, hue_high: 100, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#06B6D4' },
+// Available colors for marker selection
+export const AVAILABLE_COLORS: Array<{ name: string; display_color: string; hsv_range: HSVRange }> = [
+  { name: 'Red', display_color: '#EF4444', hsv_range: { hue_low: 170, hue_high: 10, sat_low: 120, sat_high: 255, val_low: 100, val_high: 255 } },
+  { name: 'Blue', display_color: '#3B82F6', hsv_range: { hue_low: 100, hue_high: 130, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 } },
+  { name: 'Green', display_color: '#22C55E', hsv_range: { hue_low: 35, hue_high: 85, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 } },
+  { name: 'Yellow', display_color: '#EAB308', hsv_range: { hue_low: 20, hue_high: 35, sat_low: 120, sat_high: 255, val_low: 150, val_high: 255 } },
+  { name: 'Orange', display_color: '#F97316', hsv_range: { hue_low: 10, hue_high: 20, sat_low: 150, sat_high: 255, val_low: 150, val_high: 255 } },
+  { name: 'Purple', display_color: '#A855F7', hsv_range: { hue_low: 130, hue_high: 160, sat_low: 80, sat_high: 255, val_low: 60, val_high: 255 } },
+  { name: 'Pink', display_color: '#EC4899', hsv_range: { hue_low: 160, hue_high: 170, sat_low: 80, sat_high: 255, val_low: 100, val_high: 255 } },
+  { name: 'Cyan', display_color: '#06B6D4', hsv_range: { hue_low: 85, hue_high: 100, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 } },
 ]
+
+// Default 8 marker color presets (1 color per joint)
+export const DEFAULT_MARKER_CONFIGS: ColorMarkerConfig[] = [
+  { joint_name: 'left_shoulder', color_name: 'Red', position_order: 1, hsv_range: { hue_low: 170, hue_high: 10, sat_low: 120, sat_high: 255, val_low: 100, val_high: 255 }, display_color: '#EF4444' },
+  { joint_name: 'right_shoulder', color_name: 'Blue', position_order: 1, hsv_range: { hue_low: 100, hue_high: 130, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#3B82F6' },
+  { joint_name: 'left_elbow', color_name: 'Green', position_order: 1, hsv_range: { hue_low: 35, hue_high: 85, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#22C55E' },
+  { joint_name: 'right_elbow', color_name: 'Yellow', position_order: 1, hsv_range: { hue_low: 20, hue_high: 35, sat_low: 120, sat_high: 255, val_low: 150, val_high: 255 }, display_color: '#EAB308' },
+  { joint_name: 'left_hip', color_name: 'Orange', position_order: 1, hsv_range: { hue_low: 10, hue_high: 20, sat_low: 150, sat_high: 255, val_low: 150, val_high: 255 }, display_color: '#F97316' },
+  { joint_name: 'right_hip', color_name: 'Purple', position_order: 1, hsv_range: { hue_low: 130, hue_high: 160, sat_low: 80, sat_high: 255, val_low: 60, val_high: 255 }, display_color: '#A855F7' },
+  { joint_name: 'left_knee', color_name: 'Pink', position_order: 1, hsv_range: { hue_low: 160, hue_high: 170, sat_low: 80, sat_high: 255, val_low: 100, val_high: 255 }, display_color: '#EC4899' },
+  { joint_name: 'right_knee', color_name: 'Cyan', position_order: 1, hsv_range: { hue_low: 85, hue_high: 100, sat_low: 120, sat_high: 255, val_low: 80, val_high: 255 }, display_color: '#06B6D4' },
+]
+
+// Anatomical order for joints (top to bottom) - used for auto position_order
+export const JOINT_ANATOMICAL_ORDER: Record<string, number> = {
+  left_shoulder: 1,
+  right_shoulder: 1,
+  left_elbow: 2,
+  right_elbow: 2,
+  left_hip: 3,
+  right_hip: 3,
+  left_knee: 4,
+  right_knee: 4,
+}
 
 // Joint display names in Korean
 export const JOINT_LABELS: Record<string, string> = {

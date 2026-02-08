@@ -111,6 +111,7 @@ async def handle_websocket(websocket: WebSocket):
                         configs.append(ColorMarkerConfig(
                             joint_name=m['joint_name'],
                             color_name=m['color_name'],
+                            position_order=m.get('position_order', 1),
                             hsv_range=HSVRange(**m['hsv_range']),
                             display_color=m.get('display_color', '#FFFFFF'),
                         ))
